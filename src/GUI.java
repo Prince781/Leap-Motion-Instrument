@@ -1,92 +1,95 @@
-import javax.swing.*;
 import java.awt.*;
-import java.awt.geom.Point2D;
+import java.awt.image.*;
+import javax.swing.*;
 
-public class GUI extends Thread{
-	JFrame frmLeapInstrument;
-	public JSlider slider;
-	public LeapVisualizerPanel visualizerPanel;
-	public JComboBox<String> comboBox;
-
-	public static void main(String[] args) {
-		GUI window = new GUI();
-		window.frmLeapInstrument.setVisible(true);
-	}
-
+public class GUI extends Thread {
+	private boolean running = true;
+	public JFrame window;
+	public String windowTitle = "Leap Instrument Demo";
+	private int[] windowDimensions = {1000, 700};
+	private int[] contentDimensions = new int[2]; //inside canvas content
+	private int guiControlsOffset = 250;
+	private Graphics2D g2d;
+	private Graphics2D b_g2d;
+	private Canvas canvas;
+	private BufferStrategy strategy;
+	private BufferedImage background; //background buffered image
+	private GraphicsConfiguration cfg = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
+	private Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+	//private int[][] fingers;
 	public GUI() {
-		initialize();
+		window = new JFrame(windowTitle);
+		window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		//set window dimensions
+		window.setBounds((screen.width-windowDimensions[0])/2,(screen.height-windowDimensions[1])/2,windowDimensions[0],windowDimensions[1]);
+		
+		canvas = new Canvas(cfg);
+		canvas.setBounds(0, guiControlsOffset, 30, window.getSize().height-window.getInsets().top-window.getInsets().bottom-guiControlsOffset);
+		window.add(canvas, 0);
+		window.setVisible(true);
+		window.setResizable(true);
+		
+		contentDimensions[0] = canvas.getSize().width;
+		contentDimensions[1] = canvas.getSize().height;
+		background = createBufferedImage(contentDimensions[0],contentDimensions[1],false);
+		canvas.createBufferStrategy(2);
+		
+		do {
+			strategy = canvas.getBufferStrategy();
+		} while (strategy == null);
+		
+		start(); //start thread
 	}
-
-	private void initialize() {
-		frmLeapInstrument = new JFrame();									//JFrame
-		frmLeapInstrument.setTitle("Leap Instrument");
-		frmLeapInstrument.setResizable(false);
-		frmLeapInstrument.setBounds(100, 100, 800, 600);
-		frmLeapInstrument.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		frmLeapInstrument.getContentPane().setLayout(null);
-
-		JLabel lblLeapInstrument = new JLabel("Leap Instrument");			//JLabel "leap Instrument"
-		lblLeapInstrument.setFont(new Font("Lucida Grande", Font.BOLD, 20));
-		lblLeapInstrument.setBounds(29, 6, 187, 45);
-		frmLeapInstrument.getContentPane().add(lblLeapInstrument);
-
-		slider = new JSlider(0, 100, 100);										//JSlider
-		slider.setBounds(604, 22, 190, 29);
-		frmLeapInstrument.getContentPane().add(slider);
-
-		JLabel lblVolume = new JLabel("Volume");							//JLabel "volume"
-		lblVolume.setBounds(674, 10, 61, 16);
-		frmLeapInstrument.getContentPane().add(lblVolume);
-
-		comboBox = new JComboBox<String>();				//Dropdown instrument selection
-		comboBox.setBounds(421, 18, 175, 29);
-		comboBox.addItem("Piano");
-		comboBox.addItem("DrumKit");
-		frmLeapInstrument.getContentPane().add(comboBox);
-
-		visualizerPanel = new LeapVisualizerPanel();						//visualizer
-		visualizerPanel.setBounds(0, 63, 800, 520);
-		frmLeapInstrument.getContentPane().add(visualizerPanel);
+	private BufferedImage createBufferedImage(final int width, final int height, final boolean alpha) {
+		return cfg.createCompatibleImage(width, height, alpha ? Transparency.TRANSLUCENT : Transparency.OPAQUE);
 	}
-}
-class LeapVisualizerPanel extends JComponent{								//component for drawing stuff
-	private static final long serialVersionUID = 1337L;
-	int fingerX, fingerY;													//x and y coords for circle
-
-	public LeapVisualizerPanel() {
+	private Graphics2D getBuffer() {
+		if (g2d == null) try {
+			g2d = (Graphics2D) strategy.getDrawGraphics();
+		} catch (IllegalStateException e) {
+			return null;
+		}
+		return g2d;
 	}
-
-	@Override
-	public void paintComponent(Graphics g){
-		Graphics2D g2d = (Graphics2D)g;
-
-		g2d.setColor(Color.white);
-		g2d.fillRect(0, 0, 800, 520);
-
-		Point2D center = new Point2D.Float(20,20);
-		float radius = 40;
-		float[] distribution = {0.0f, 1.0f};
-		float[] hsbcolor = Color.RGBtoHSB(255, 220, 178, null);
-		float[] hsbcolor2 = Color.RGBtoHSB(231, 158, 109, null);
-		Color[] colors = {Color.getHSBColor(hsbcolor[0], hsbcolor[1], hsbcolor[2]),Color.getHSBColor(hsbcolor2[0], hsbcolor2[1], hsbcolor2[2])};
-		RadialGradientPaint gradient = new RadialGradientPaint(center,radius,distribution,colors);
-
-		if(!(fingerX==0 && fingerY==0)){
-			g2d.setPaint(gradient);
-			g2d.fillOval(fingerX, fingerY, 40, 40);
+	private boolean screenUpdate() {
+		g2d.dispose(); //free resources
+		g2d = null;
+		try {
+			strategy.show();
+			Toolkit.getDefaultToolkit().sync();
+			return (!strategy.contentsLost());
+		} catch (NullPointerException e) {
+			return true;
+		} catch (IllegalStateException e) {
+			return true;
 		}
 	}
-
-	public int getFingerX() {
-		return fingerX;
+	public void run() { //thread run
+		b_g2d = (Graphics2D) background.getGraphics();
+		main: while (running) {
+			update(); //non-rendering update
+			do {
+				if (!running) break main;
+				Graphics2D bg = getBuffer(); //get buffered graphics
+				render(b_g2d); //render stuff to background graphics
+				bg.drawImage(background,0,0,null);
+			} while (!screenUpdate()); //update screen 
+		}
+		window.dispose(); //free resources
 	}
-	public void setFingerX(int fingerX) {
-		this.fingerX = fingerX;
+	public void instrumentUpdate(Instrument instrument) {
+		/* update information based on instrument, for use later
+		 * in update()
+		 */
+		
 	}
-	public int getFingerY() {
-		return fingerY;
+	public void update() {
 	}
-	public void setFingerY(int fingerY) {
-		this.fingerY = fingerY;
+	public void render(Graphics2D g) { //render using g
+		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+		g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+		g.setColor(Color.black);
+		g.fillRect(0, 0, contentDimensions[0],  contentDimensions[1]);
+		//TODO: add more code below:
 	}
 }
