@@ -105,45 +105,65 @@ public class Instrument {
 	public Instrument(String name) throws Exception {
 		/* we can determine if the instrument is pitched or not,
 		   based on its name */
-		int[] instrumentData = (new InstrumentList()).getInstrumentData(name);
+		InstrumentList.InstrumentValues instrumentData = (new InstrumentList()).getInstrumentData(name);
 		if (instrumentData == null)
 			throw new InvalidInstrumentNameException();
-		pitched = instrumentData[2] == 1;
+		pitched = instrumentData.pitched;
 		synth = MidiSystem.getSynthesizer();
 		synth.open(); //crucial; opens the synthesizer
-		channelNum = instrumentData[0];
+		channelNum = instrumentData.channel;
 		channel = synth.getChannels()[channelNum];
-		type = instrumentData[1];
-		fingered = instrumentData[3] == 1;
-		fingerHandDistance = instrumentData[4];
-		instrumentHeight = instrumentData[5];
-		depressionAmount = instrumentData[6];
-		velocityThreshold = instrumentData[7];
+		type = instrumentData.instrumentType;
+		fingered = instrumentData.fingered;
+		fingerHandDistance = instrumentData.spacing;
+		instrumentHeight = instrumentData.instrumentHeight;
+		depressionAmount = instrumentData.heightWindow;
+		velocityThreshold = instrumentData.velocityThreshold;
 	}
 }
 
 class InstrumentList {
-	private HashMap<String, int[]> instrumentData = new HashMap<String, int[]>();
+	public static class InstrumentValues {
+		public final int channel;
+			//the current MIDI channel of the instrument
+		public final int instrumentType;
+			//the current instrument type (for percussion, usually)
+		public final boolean pitched;
+			//whether or not the instrument is pitched
+		public final boolean fingered;
+			//whether or not the instrument is fingered
+		public final float spacing;
+			//the optimal distance (in mm) between appendages (fingers for fingered instruments, hands for drums)
+		public final float instrumentHeight;
+			//the minimum height (in mm) of the instrument from the Leap Motion sensor 
+		public final float heightWindow;
+			//the amount of tolerance given to the instrument's height +-(offset in mm)
+		public final float velocityThreshold;
+			//the required velocity of the user's appendages to initiate a sound from the instrument
+		public InstrumentValues(int channelNum, int instrumentTypeNum, boolean isPitched, 
+				boolean isFingered, float spacingAmount, float height, float heightTolerance, 
+				float minimumVelocity) {
+			channel = channelNum;
+			instrumentType = instrumentTypeNum;
+			pitched = isPitched;
+			fingered = isFingered;
+			spacing = spacingAmount;
+			instrumentHeight = height;
+			heightWindow = heightTolerance;
+			velocityThreshold = minimumVelocity;
+		}
+	}
+	private HashMap<String, InstrumentValues> instrumentData = new HashMap<String, InstrumentValues>();
 	InstrumentList() {
 		//put in instrument data
-		/* instrument info array
-		 * 0: channel
-		 * 1: instrument type (for percussion, usually)
-		 * 2: pitched (0 == false, 1 == true)
-		 * 3: isFingered (0 == not fingered, 1 == fingered)
-		 * 4: distance (distance between hands/fingers) in mm
-		 * 5: instrumentHeight (distance instrument is, or height) in mm
-		 * 6: depressionAmount (amount user must "press down" with appendages) in mm
-		 * 7: velocityThreshold (minimum velocity required to initiate) in mm/s
-		 */
-		instrumentData.put("Kick", new int[] {9, 35, 0, 0, 90, 40, 2});
-		instrumentData.put("HiHat", new int[] {9, 42, 0, 0, 90, 40, 2});
-		instrumentData.put("Snare", new int[] {9, 40, 0, 0, 90, 40, 2});
-		instrumentData.put("Crash", new int[] {9, 55, 0, 0, 90, 40, 2});
-		instrumentData.put("Floor Tom", new int[] {9, 41, 0, 0, 90, 40, 2});
-		instrumentData.put("Low Tom", new int[] {9, 45, 0, 0, 90, 40, 2});
-		instrumentData.put("High Tom", new int[] {9, 50, 0, 0, 90, 40, 2});
-		instrumentData.put("Piano", new int[] {0, 0, 1, 1, 14, 90, 40, 2});
+		instrumentData.put("Kick", new InstrumentValues(9, 35, false, false, 100.0f, 90.0f, 40.0f, 2.0f));
+		instrumentData.put("HiHat", new InstrumentValues(9, 42, false, false, 100.0f, 90.0f, 40.0f, 2.0f));
+		instrumentData.put("Snare", new InstrumentValues(9, 40, false, false, 100.0f, 90.0f, 40.0f, 2.0f));
+		instrumentData.put("Crash", new InstrumentValues(9, 55, false, false, 100.0f, 90.0f, 40.0f, 2.0f));
+		instrumentData.put("Floor Tom", new InstrumentValues(9, 41, false, false, 100.0f, 90.0f, 40.0f, 2.0f));
+		instrumentData.put("Low Tom", new InstrumentValues(9, 45, false, false, 100.0f, 90.0f, 40.0f, 2.0f));
+		instrumentData.put("High Tom", new InstrumentValues(9, 50, false, false, 100.0f, 90.0f, 40.0f, 2.0f));
+		instrumentData.put("Piano", new InstrumentValues(0, 0, true, true, 14.0f, 90.0f, 20.0f, 5.0f));
 		/* note that Acoustic Grand Piano does not have an additional note specifier after
 		 * its channel information, which is only for drums (all located on Channel 9)
 		 * the value at position 1 in the piano's array (which is 0) is simply there for
@@ -152,7 +172,7 @@ class InstrumentList {
 		 * in addition, the Acoustic Grand Piano's note width is 14 mm, for an octave width of 168 mm
 		 */
 	}
-	public int[] getInstrumentData(String name) {
+	public InstrumentValues getInstrumentData(String name) {
 		return instrumentData.get(name);
 	}
 }

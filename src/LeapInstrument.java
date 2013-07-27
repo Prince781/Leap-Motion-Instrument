@@ -6,6 +6,7 @@ import com.leapmotion.leap.*;
 import java.io.*;
 
 public class LeapInstrument extends Listener {
+	public static boolean DEBUG = true;
 	GUI gui; //the interface for the program
 	Instrument instrument;
 	public void onInit(Controller controller) {
