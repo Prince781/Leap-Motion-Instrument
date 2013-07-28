@@ -95,10 +95,11 @@ public class Instrument {
 				if (channel.getPolyPressure(note) != 0)
 					channel.setPolyPressure(note, (int)pressure);
 				else channel.noteOn(note, (int)pressure);
-				System.out.println("Playing a note on key "+note+" with pressure "+pressure+".");
+				if (LeapInstrument.DEBUG)
+					System.out.println("Playing a note on key "+note+" with pressure "+pressure+".");
 			}
 		} else {
-			int note = (int)(0f + (distance/fingerHandDistance));
+			int note = (int)(distance/fingerHandDistance);
 			
 		}
 	}

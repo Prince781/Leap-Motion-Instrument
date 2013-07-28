@@ -15,5 +15,6 @@
 			<attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="Musil/jar/lib/amd64/win"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry exported="true" kind="lib" path="jar/MS3DLoader-1.0.8.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
